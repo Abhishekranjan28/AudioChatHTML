@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        audio {
+            margin-top: 20px;
+            display: block;
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Chatbot</h1>
+    <button id="start-recording">Start Recording</button>
+    <audio id="response-audio" controls></audio>
+
+    <script>
+        const startRecordingButton = document.getElementById('start-recording');
+        const responseAudio = document.getElementById('response-audio');
+        let mediaRecorder;
+        let audioChunks = [];
+
+        startRecordingButton.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                startRecordingButton.textContent = 'Start Recording';
+            } else {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        mediaRecorder = new MediaRecorder(stream);
+                        mediaRecorder.ondataavailable = event => {
+                            audioChunks.push(event.data);
+                        };
+                        mediaRecorder.onstop = () => {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                            const audioFile = new File([audioBlob], 'audio.wav');
+                            uploadAudio(audioFile);
+                        };
+                        mediaRecorder.start();
+                        startRecordingButton.textContent = 'Stop Recording';
+                    })
+                    .catch(err => {
+                        console.error('Error accessing microphone:', err);
+                    });
+            }
+        });
+
+        function uploadAudio(audioFile) {
+            const formData = new FormData();
+            formData.append('audio', audioFile);
+
+            fetch('https://audiochatapi-pydu.onrender.com/chat', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const audioUrl = URL.createObjectURL(blob);
+                responseAudio.src = audioUrl;
+            })
+            .catch(err => {
+                console.error('Error uploading audio:', err);
+            });
+        }
+    </script>
+</body>
+</html>
